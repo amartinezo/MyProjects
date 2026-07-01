@@ -10,12 +10,13 @@ import numpy as np
 import pandas as pd
 
 import elo_seed
+from backtest import brier_1x2, rps, run_backtest
 from data import match_specs_to_sources
 from features import TeamState, build_training_features, match_feature_rows
 from model import GoalsModel
 from poisson import outcome_probs, score_grid
 from predict import predict_fixture
-from scoring import advance_probabilities, expected_points, optimize_pick
+from scoring import advance_probabilities, expected_points, optimize_pick, score_pick
 
 
 def _check(name, cond):
@@ -137,10 +138,39 @@ def test_elo_seed():
     _check("unknown team falls back to default", st.elo[12] == elo_seed.seed_for("Nowhere FC"))
 
 
+def test_metrics():
+    print("Backtest metrics:")
+    _check("brier perfect = 0", abs(brier_1x2(1, 0, 0, 0)) < 1e-9)
+    _check("rps perfect = 0", abs(rps(1, 0, 0, 0)) < 1e-9)
+    _check("rps penalises distance", rps(0, 0, 1, 0) > rps(0, 1, 0, 0))
+    _check("exact score = 8", score_pick("home", 2, 1, 2, 1, winner_definition="result_90") == 8)
+    _check("goal diff = 5", score_pick("home", 2, 1, 3, 2, winner_definition="result_90") == 5)
+    _check("winner only = 3", score_pick("home", 3, 1, 1, 0, winner_definition="result_90") == 3)
+    _check("wrong winner = 0", score_pick("home", 2, 1, 0, 1, winner_definition="result_90") == 0)
+    _check("90' draw scores no winner (result_90)",
+           score_pick("home", 1, 0, 1, 1, winner_definition="result_90") == 0)
+
+
+def test_backtest():
+    print("Backtest engine (no network):")
+    m = _fake_matches(n_matches=200, seed=1)
+    m["league_id"] = 1
+    since = str(m["date"].iloc[170].date())
+    res = run_backtest(m, test_league_id=1, since=since)
+    _check("scored some matches", res["n"] > 0)
+    _check("brier in sane range", 0 <= res["brier"] <= 2)
+    _check("all strategies reported",
+           {"model", "modal", "fav1-0"} <= res["strategies"].keys())
+    _check("points/game within [0, 8]",
+           all(0 <= a["points"] / res["n"] <= 8 for a in res["strategies"].values()))
+
+
 if __name__ == "__main__":
     test_poisson()
     test_scoring()
     test_league_resolver()
     test_elo_seed()
+    test_metrics()
+    test_backtest()
     test_end_to_end()
     print("\nAll self-tests passed.")

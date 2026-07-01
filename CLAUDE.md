@@ -31,8 +31,15 @@ score-probability grid (`poisson.py`) → optional de-vigged bookmaker-odds blen
 python worldcup_pickem/daily.py                 # today's fixtures
 python worldcup_pickem/daily.py --date 2026-07-05
 python worldcup_pickem/daily.py --no-odds       # ignore bookmaker odds
+python worldcup_pickem/backtest.py              # walk-forward accuracy vs baselines
+python worldcup_pickem/backtest.py --all-internationals   # bigger test sample
 python worldcup_pickem/selftest.py              # offline checks, no key/network
 ```
+
+`backtest.py` retrains per matchday on prior-only data and scores the model's pick
+vs. `modal` and a naive `fav1-0` baseline (pts/game, winner/GD/exact %), plus
+Brier/RPS calibration. The model earns its keep only if it beats `fav1-0`. Runs
+model-only (no historical odds).
 
 ### Presenting results to the user
 The user cares MOST about the **most likely scorelines** per match (and the most
