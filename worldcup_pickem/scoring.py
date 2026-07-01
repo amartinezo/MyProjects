@@ -98,7 +98,8 @@ class Recommendation:
     alternatives: list = field(default_factory=list)
 
     def pretty_pick(self) -> str:
-        return f"{self.winner_name} to advance, {self.hg}-{self.ag} (90')"
+        verb = "win (90')" if config.WINNER_DEFINITION == "result_90" else "advance"
+        return f"{self.winner_name} to {verb}, {self.hg}-{self.ag} (90')"
 
 
 def optimize_pick(

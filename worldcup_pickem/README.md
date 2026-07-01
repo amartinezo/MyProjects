@@ -5,9 +5,9 @@ for each World Cup knockout match, tuned to your pool's **3 / 5 / 8** scoring:
 
 | You get | For picking correctly |
 |--------:|-----------------------|
-| **3 pts** | the team that advances |
-| **5 pts** | team that advances **+** goal difference (90') |
-| **8 pts** | team that advances **+** exact score (90') |
+| **3 pts** | the winning team (90') |
+| **5 pts** | winning team **+** goal difference (90') |
+| **8 pts** | winning team **+** exact score (90') |
 
 ## How it works
 
@@ -64,17 +64,17 @@ expected points** plus the next-best alternatives.
 
 - `TRAINING_SOURCES` — add World Cup Qualifier / Nations League league ids to
   enrich team-strength estimates (more relevant matches = better model).
-- `WINNER_DEFINITION` — `"advances"` (default) or `"result_90"` if your pool
-  scores the 3-point winner at the end of regulation instead.
+- `WINNER_DEFINITION` — `"result_90"` (default) scores the 3-point winner by the
+  90' result; switch to `"advances"` if your pool credits whoever progresses.
 - `PTS_WINNER / PTS_GOAL_DIFF / PTS_EXACT` — change if your pool's points differ.
 - `MARKET_BLEND_WEIGHT` — how much to trust bookmaker odds vs. the model.
 - `DIXON_COLES_RHO`, `ELO_K`, `FORM_WINDOW` — modelling knobs.
 
 ## Notes & assumptions
 
-- "Winning team" is assumed to mean **who advances** (incl. extra time /
-  penalties); the entered **score is the 90' scoreline**. Flip `WINNER_DEFINITION`
-  if your pool differs.
+- "Winning team" means the **team ahead at the end of 90'** (a 90' draw scores no
+  winner points); the entered **score is the 90' scoreline**. Flip
+  `WINNER_DEFINITION` to `"advances"` if your pool credits whoever progresses.
 - World Cup matches are treated as neutral venues except when a host nation
   (USA / Canada / Mexico) is the home side.
 - Cached API responses live in `data/cache/` and the trained model in
