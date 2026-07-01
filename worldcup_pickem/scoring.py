@@ -76,6 +76,39 @@ def expected_points(
     return ev
 
 
+def score_pick(
+    pick_winner: str,
+    pick_hg: int,
+    pick_ag: int,
+    actual_hg: int,
+    actual_ag: int,
+    *,
+    winner_definition: str | None = None,
+    advancer: str | None = None,
+) -> int:
+    """Actual Pick 'Em points a (winner, scoreline) entry earns for a result.
+
+    The realised-outcome analogue of :func:`expected_points`, used for scoring
+    predictions against final results (e.g. in the backtest). ``advancer`` is only
+    needed when ``winner_definition == "advances"``.
+    """
+    winner_definition = winner_definition or config.WINNER_DEFINITION
+    if winner_definition == "result_90":
+        actual_winner = ("home" if actual_hg > actual_ag
+                         else "away" if actual_hg < actual_ag else None)
+        winner_correct = actual_winner is not None and pick_winner == actual_winner
+    else:  # "advances"
+        winner_correct = advancer is not None and pick_winner == advancer
+
+    if not winner_correct:
+        return 0
+    if pick_hg == actual_hg and pick_ag == actual_ag:
+        return config.PTS_EXACT
+    if (pick_hg - pick_ag) == (actual_hg - actual_ag):
+        return config.PTS_GOAL_DIFF
+    return config.PTS_WINNER
+
+
 @dataclass
 class Recommendation:
     winner: str                 # "home" or "away"
