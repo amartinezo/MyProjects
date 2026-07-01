@@ -46,9 +46,19 @@ Each recommendation object exposes `top_scores` and `outcome_scores` for this.
   package registries). API-Football league id **1**, season **2026**.
 - Setup script installs `worldcup_pickem/requirements.txt`.
 
+### Training data (dynamic)
+Training competitions are resolved by **name** at runtime (`data.resolve_sources`
+→ `/leagues`), not hard-coded ids. `COMPETITION_SPECS` in `config.py` lists them:
+World Cup + qualifiers, Nations League (UEFA/CONCACAF), Euro 2024, Copa América
+2024, AFCON, international friendlies. Only `country == "World"` leagues match, and
+only seasons the plan covers are pulled. Falls back to `TRAINING_SOURCES` (explicit
+ids) if `/leagues` is unavailable. Elo is seeded from `elo_seed.py` priors
+(`ELO_SEED_ENABLED`) to cut cold-start noise. User is on the **Pro** API plan.
+
 ### Handy config knobs (`config.py`)
-`WINNER_DEFINITION`, `PTS_WINNER/PTS_GOAL_DIFF/PTS_EXACT`, `MARKET_BLEND_WEIGHT`,
-`TRAINING_SOURCES` (add qualifier/Nations League league ids to enrich), `MAX_GOALS`,
+`WINNER_DEFINITION`, `PTS_WINNER/PTS_GOAL_DIFF/PTS_EXACT`, `MARKET_BLEND_WEIGHT`
+(currently 0.6 — lean on odds while sample is thin; lower toward 0.4 as data
+grows), `COMPETITION_SPECS`, `USE_DYNAMIC_SOURCES`, `ELO_SEED_ENABLED`, `MAX_GOALS`,
 `DIXON_COLES_RHO`, `ELO_K`, `FORM_WINDOW`.
 
 ## Dev practices

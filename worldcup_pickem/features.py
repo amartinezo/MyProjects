@@ -12,6 +12,7 @@ from collections import defaultdict, deque
 import pandas as pd
 
 import config
+import elo_seed
 
 # Column order shared by training and inference. Keep in sync deliberately.
 FEATURE_COLS = [
@@ -39,6 +40,18 @@ class TeamState:
         self.ga: dict[int, deque] = defaultdict(lambda: deque(maxlen=config.FORM_WINDOW))
         self.last_date: dict[int, pd.Timestamp] = {}
         self.name: dict[int, str] = {}
+
+    def seed_elo(self, id2name: dict[int, str]) -> None:
+        """Prime each team's Elo from known-strength priors (see elo_seed.py).
+
+        Elo is keyed by team id but priors are keyed by name, so we seed up
+        front from an id->name map before any match is processed.
+        """
+        if not config.ELO_SEED_ENABLED:
+            return
+        for tid, nm in id2name.items():
+            self.elo[tid] = elo_seed.seed_for(nm)
+            self.name[tid] = nm
 
     # -- feature construction (read-only) ---------------------------------
     def team_row(self, team_id, opp_id, *, is_physical_home, neutral, knockout, date):
@@ -115,6 +128,13 @@ def build_training_features(df: pd.DataFrame) -> tuple[pd.DataFrame, TeamState]:
     final :class:`TeamState` for predicting future fixtures.
     """
     state = TeamState()
+    # Seed Elo priors from all teams present, before any match is processed.
+    id2name = {}
+    for m in df.itertuples(index=False):
+        id2name[m.home_id] = m.home
+        id2name[m.away_id] = m.away
+    state.seed_elo(id2name)
+
     rows: list[dict] = []
     for m in df.itertuples(index=False):
         # Features are read BEFORE this match is folded into the state.
