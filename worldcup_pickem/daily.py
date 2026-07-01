@@ -35,8 +35,22 @@ def print_recommendation(r) -> None:
           f"Draw {_fmt_pct(r.p_draw_90)}   Away {_fmt_pct(r.p_away_90)}")
     print(f"  Advance:     {r.home_name} {_fmt_pct(r.p_home_adv)}   "
           f"{r.away_name} {_fmt_pct(r.p_away_adv)}")
-    print(f"  Most likely exact score: {r.modal_hg}-{r.modal_ag} "
-          f"({_fmt_pct(r.modal_prob)})")
+
+    # Score distribution: the most likely exact scorelines.
+    if r.top_scores:
+        line = "   ".join(f"{i}-{j} ({100 * p:.0f}%)" for i, j, p in r.top_scores)
+        print(f"  Most likely scores:  {line}")
+
+    # Most likely scoreline within each result (home win / draw / away win).
+    if r.outcome_scores:
+        h = r.outcome_scores.get("home")
+        d = r.outcome_scores.get("draw")
+        a = r.outcome_scores.get("away")
+        if h and d and a:
+            print(f"  By result:   {r.home_name} win {h[0]}-{h[1]} ({_fmt_pct(h[2])})   "
+                  f"Draw {d[0]}-{d[1]} ({_fmt_pct(d[2])})   "
+                  f"{r.away_name} win {a[0]}-{a[1]} ({_fmt_pct(a[2])})")
+
     print(f"\n  >> RECOMMENDED PICK:  {r.pretty_pick()}")
     print(f"     Expected points:   {r.expected_points:.2f}  "
           f"(rules {config.PTS_WINNER}/{config.PTS_GOAL_DIFF}/{config.PTS_EXACT})")

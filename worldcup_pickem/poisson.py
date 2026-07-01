@@ -61,3 +61,36 @@ def modal_score(grid: np.ndarray) -> tuple[int, int, float]:
     """Most likely exact scoreline and its probability."""
     i, j = np.unravel_index(int(np.argmax(grid)), grid.shape)
     return int(i), int(j), float(grid[i, j])
+
+
+def top_scores(grid: np.ndarray, n: int = 5) -> list[tuple[int, int, float]]:
+    """The ``n`` most likely exact scorelines as (home, away, probability)."""
+    flat = np.argsort(grid, axis=None)[::-1][:n]
+    out = []
+    for idx in flat:
+        i, j = np.unravel_index(int(idx), grid.shape)
+        out.append((int(i), int(j), float(grid[i, j])))
+    return out
+
+
+def most_likely_by_outcome(grid: np.ndarray) -> dict[str, tuple[int, int, float, float]]:
+    """Most likely scoreline within each result region (home / draw / away).
+
+    Returns {result: (home_goals, away_goals, joint_prob, conditional_prob)},
+    where joint_prob is P(that exact score) and conditional_prob is
+    P(that score | that result happens).
+    """
+    p_home, p_draw, p_away = outcome_probs(grid)
+    n = grid.shape[0]
+    best = {"home": (0, 0, -1.0), "draw": (0, 0, -1.0), "away": (0, 0, -1.0)}
+    for i in range(n):
+        for j in range(grid.shape[1]):
+            key = "home" if i > j else "away" if i < j else "draw"
+            if grid[i, j] > best[key][2]:
+                best[key] = (i, j, float(grid[i, j]))
+    totals = {"home": p_home, "draw": p_draw, "away": p_away}
+    result = {}
+    for key, (i, j, p) in best.items():
+        cond = p / totals[key] if totals[key] > 0 else 0.0
+        result[key] = (i, j, p, cond)
+    return result

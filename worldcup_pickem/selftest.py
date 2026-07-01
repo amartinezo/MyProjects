@@ -47,6 +47,15 @@ def test_scoring():
     bad = expected_points(g, "away", 0, 3)
     _check("optimiser beats a bad pick", rec.expected_points > bad)
 
+    # Score distribution fields.
+    _check("top_scores sorted descending",
+           all(rec.top_scores[k][2] >= rec.top_scores[k + 1][2]
+               for k in range(len(rec.top_scores) - 1)))
+    _check("outcome_scores has all three results",
+           {"home", "draw", "away"} <= rec.outcome_scores.keys())
+    _check("conditional prob <= 1",
+           all(v[3] <= 1.0 + 1e-9 for v in rec.outcome_scores.values()))
+
 
 def _fake_matches(n_teams=16, n_matches=600, seed=0):
     rng = np.random.default_rng(seed)
