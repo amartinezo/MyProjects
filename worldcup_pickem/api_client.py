@@ -143,6 +143,11 @@ class APIFootball:
         rows = self.get("status", ttl_hours=0)
         return rows[0] if rows else {}
 
+    def leagues(self, **kw) -> list[dict]:
+        # Rarely changes; cache for a week. Returns every league the plan sees,
+        # each with its available seasons.
+        return self.get("leagues", kw, ttl_hours=24 * 7)
+
     def fixtures(self, league: int, season: int, **kw) -> list[dict]:
         params = {"league": league, "season": season, **kw}
         return self.get("fixtures", params)

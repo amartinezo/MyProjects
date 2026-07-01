@@ -62,12 +62,17 @@ expected points** plus the next-best alternatives.
 
 ## Tuning (`config.py`)
 
-- `TRAINING_SOURCES` — add World Cup Qualifier / Nations League league ids to
-  enrich team-strength estimates (more relevant matches = better model).
+- `COMPETITION_SPECS` — international competitions used for training, resolved to
+  league ids **by name** at runtime (World Cup + qualifiers, Nations League, Euro,
+  Copa América, AFCON, friendlies). Add/remove entries to tune the training mix;
+  `USE_DYNAMIC_SOURCES=0` falls back to explicit `TRAINING_SOURCES` ids.
+- `ELO_SEED_ENABLED` — seed team Elo from `elo_seed.py` priors (reduces
+  cold-start noise) instead of a flat 1500.
 - `WINNER_DEFINITION` — `"result_90"` (default) scores the 3-point winner by the
   90' result; switch to `"advances"` if your pool credits whoever progresses.
 - `PTS_WINNER / PTS_GOAL_DIFF / PTS_EXACT` — change if your pool's points differ.
-- `MARKET_BLEND_WEIGHT` — how much to trust bookmaker odds vs. the model.
+- `MARKET_BLEND_WEIGHT` — how much to trust bookmaker odds vs. the model (0.6 by
+  default; lower toward 0.4 as the model accumulates more data).
 - `DIXON_COLES_RHO`, `ELO_K`, `FORM_WINDOW` — modelling knobs.
 
 ## Notes & assumptions

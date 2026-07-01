@@ -72,12 +72,13 @@ def main(argv=None) -> int:
     client = get_client()
 
     try:
-        print(f"Fetching & training on data from {config.TRAINING_SOURCES} ...")
+        print("Resolving competitions and fetching match data ...")
         matches = build_match_frame(client)
         if matches.empty:
-            print("No finished matches returned. Check league/season ids in config.py.")
+            print("No finished matches returned. Check competitions in config.py.")
             return 1
-        print(f"  Trained on {len(matches)} matches "
+        print(f"  Trained on {len(matches)} matches across "
+              f"{matches['league_id'].nunique()} competitions "
               f"({matches['date'].min().date()} -> {matches['date'].max().date()}).")
 
         feat, state = build_training_features(matches)

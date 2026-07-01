@@ -69,13 +69,60 @@ def _row_from_fixture(fx: dict, *, world_cup_league: int) -> dict | None:
     }
 
 
+def match_specs_to_sources(leagues_response: list[dict], specs: list[dict]) -> list[tuple[int, int]]:
+    """Pure resolver: map competition specs to (league_id, season) pairs.
+
+    Only international competitions (country == "World") are considered, so club
+    leagues with similar names can't sneak in. A spec's requested seasons are
+    intersected with the seasons the league actually offers on this plan.
+    """
+    sources: list[tuple[int, int]] = []
+    for entry in leagues_response:
+        league = entry.get("league", {}) or {}
+        country = (entry.get("country", {}) or {}).get("name")
+        if country != "World":
+            continue
+        name = (league.get("name") or "")
+        lid = league.get("id")
+        if lid is None:
+            continue
+        available = {s.get("year") for s in (entry.get("seasons") or [])}
+        for spec in specs:
+            pat = spec["name"]
+            hit = (name == pat) if spec.get("match") == "exact" else (pat.lower() in name.lower())
+            if not hit:
+                continue
+            for season in spec["seasons"]:
+                if season in available and (lid, season) not in sources:
+                    sources.append((lid, season))
+    return sources
+
+
+def resolve_sources(
+    client: APIFootball | None = None,
+    specs: list[dict] | None = None,
+) -> list[tuple[int, int]]:
+    """Query /leagues and resolve configured specs to (league_id, season) pairs."""
+    client = client or get_client()
+    specs = specs or config.COMPETITION_SPECS
+    return match_specs_to_sources(client.leagues(), specs)
+
+
 def build_match_frame(
     client: APIFootball | None = None,
     sources: list[tuple[int, int]] | None = None,
 ) -> pd.DataFrame:
     """Return a chronologically sorted DataFrame of *finished* matches."""
     client = client or get_client()
-    sources = sources or config.TRAINING_SOURCES
+    if sources is None:
+        if config.USE_DYNAMIC_SOURCES:
+            try:
+                sources = resolve_sources(client)
+            except Exception:
+                sources = []
+        # Fall back to explicit ids if dynamic resolution is off or empty.
+        if not sources:
+            sources = config.TRAINING_SOURCES
 
     rows: list[dict] = []
     for league_id, season in sources:

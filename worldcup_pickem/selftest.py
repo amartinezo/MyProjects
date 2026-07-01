@@ -9,7 +9,9 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from features import build_training_features, match_feature_rows
+import elo_seed
+from data import match_specs_to_sources
+from features import TeamState, build_training_features, match_feature_rows
 from model import GoalsModel
 from poisson import outcome_probs, score_grid
 from predict import predict_fixture
@@ -99,8 +101,46 @@ def test_end_to_end():
     print(f"     e.g. pick: {rec.pretty_pick()}  (EV {rec.expected_points:.2f})")
 
 
+def test_league_resolver():
+    print("Dynamic league resolver:")
+    # A realistic slice of an API-Football /leagues response.
+    fake = [
+        {"league": {"id": 1, "name": "World Cup"}, "country": {"name": "World"},
+         "seasons": [{"year": 2026}, {"year": 2022}, {"year": 2018}]},
+        {"league": {"id": 32, "name": "World Cup - Qualification Europe"},
+         "country": {"name": "World"}, "seasons": [{"year": 2025}, {"year": 2024}]},
+        {"league": {"id": 5, "name": "UEFA Nations League"}, "country": {"name": "World"},
+         "seasons": [{"year": 2024}]},
+        # Club league that must NOT match despite "Cup" in the name.
+        {"league": {"id": 45, "name": "FA Cup"}, "country": {"name": "England"},
+         "seasons": [{"year": 2024}]},
+    ]
+    specs = [
+        {"name": "World Cup", "match": "exact", "seasons": [2026, 2022, 2018]},
+        {"name": "World Cup - Qualification", "match": "contains", "seasons": [2025, 2024]},
+        {"name": "UEFA Nations League", "match": "exact", "seasons": [2024]},
+    ]
+    src = match_specs_to_sources(fake, specs)
+    _check("main World Cup seasons resolved", (1, 2026) in src and (1, 2018) in src)
+    _check("qualifiers resolved by 'contains'", (32, 2025) in src and (32, 2024) in src)
+    _check("nations league resolved", (5, 2024) in src)
+    _check("club FA Cup excluded (not country=World)", all(s[0] != 45 for s in src))
+    _check("unavailable season dropped", (5, 2023) not in src)
+
+
+def test_elo_seed():
+    print("Elo seeding:")
+    st = TeamState()
+    st.seed_elo({10: "Brazil", 11: "Panama", 12: "Nowhere FC"})
+    _check("known team seeded above default", st.elo[10] > st.elo[12])
+    _check("stronger team seeded above weaker", st.elo[10] > st.elo[11])
+    _check("unknown team falls back to default", st.elo[12] == elo_seed.seed_for("Nowhere FC"))
+
+
 if __name__ == "__main__":
     test_poisson()
     test_scoring()
+    test_league_resolver()
+    test_elo_seed()
     test_end_to_end()
     print("\nAll self-tests passed.")
