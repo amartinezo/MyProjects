@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 import config
-from poisson import modal_score, outcome_probs
+from poisson import modal_score, most_likely_by_outcome, outcome_probs, top_scores
 
 
 def advance_probabilities(grid: np.ndarray, tiebreak_home: float = 0.5) -> tuple[float, float]:
@@ -96,6 +96,11 @@ class Recommendation:
     home_name: str = ""
     away_name: str = ""
     alternatives: list = field(default_factory=list)
+    # Most likely exact scorelines as (home, away, prob), highest first.
+    top_scores: list = field(default_factory=list)
+    # Most likely score within each result: {"home"/"draw"/"away":
+    # (home, away, joint_prob, conditional_prob)}.
+    outcome_scores: dict = field(default_factory=dict)
 
     def pretty_pick(self) -> str:
         verb = "win (90')" if config.WINNER_DEFINITION == "result_90" else "advance"
@@ -139,6 +144,8 @@ def optimize_pick(
     p_home_adv, p_away_adv = advance_probabilities(grid, tiebreak_home)
     p_home_90, p_draw_90, p_away_90 = outcome_probs(grid)
     mi, mj, mp = modal_score(grid)
+    scores = top_scores(grid, n=6)
+    outcome_scores = most_likely_by_outcome(grid)
 
     name = {"home": home_name, "away": away_name}
     alternatives = [
@@ -165,4 +172,6 @@ def optimize_pick(
         home_name=home_name,
         away_name=away_name,
         alternatives=alternatives,
+        top_scores=scores,
+        outcome_scores=outcome_scores,
     )
