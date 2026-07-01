@@ -36,6 +36,13 @@ CACHE_TTL_HOURS = float(os.environ.get("API_CACHE_TTL_HOURS", "24"))
 WORLD_CUP_LEAGUE_ID = int(os.environ.get("WORLD_CUP_LEAGUE_ID", "1"))
 WORLD_CUP_SEASON = int(os.environ.get("WORLD_CUP_SEASON", "2026"))
 
+# Timezone used to bucket "today's" fixtures. API-Football filters the /fixtures
+# `date` param by UTC calendar date unless a `timezone` is supplied, which would
+# otherwise misfile evening kickoffs in the Americas: a game at 20:00 local
+# (00:00 UTC next day) would drop off "today" and a late game the night before
+# would wrongly appear. Set to your local IANA timezone.
+LOCAL_TIMEZONE = os.environ.get("LOCAL_TIMEZONE", "America/New_York")
+
 # We resolve training competitions DYNAMICALLY by name instead of hard-coding
 # API-Football league ids (which vary by plan and are easy to get wrong). At
 # build time `data.resolve_sources` queries /leagues, keeps only international
