@@ -42,13 +42,20 @@ def test_scoring():
     _check("favourite more likely to advance", p_home_adv > p_away_adv)
 
     rec = optimize_pick(g, home_name="Alpha", away_name="Beta",
-                        lambda_home=2.4, lambda_away=0.6, tiebreak_home=0.6)
-    _check("recommends the favourite", rec.winner == "home")
+                        lambda_home=2.4, lambda_away=0.6)
+    _check("recommends the favourite", rec.outcome == "home")
     _check("EV within [0, 8]", 0 <= rec.expected_points <= 8)
 
     # EV of best pick beats an obviously bad pick (underdog exact upset score).
-    bad = expected_points(g, "away", 0, 3)
+    bad = expected_points(g, 0, 3)
     _check("optimiser beats a bad pick", rec.expected_points > bad)
+
+    # A tight game should offer a draw as the swing (differentiating) pick.
+    gt = score_grid(1.1, 1.0)
+    rt = optimize_pick(gt, home_name="A", away_name="B", lambda_home=1.1, lambda_away=1.0)
+    _check("swing exists and differs from safe outcome",
+           rt.swing is not None and rt.swing["outcome"] != rt.outcome)
+    _check("swing EV <= safe EV", rt.swing["ev"] <= rt.expected_points + 1e-9)
 
     # Score distribution fields.
     _check("top_scores sorted descending",
@@ -98,7 +105,7 @@ def test_end_to_end():
         "home_id": 0, "away_id": 1, "home": "T0", "away": "T1",
         "neutral": True, "knockout": True, "date": matches["date"].max(),
     }, client=None, use_odds=False)
-    _check("recommendation produced", rec.winner in ("home", "away"))
+    _check("recommendation produced", rec.outcome in ("home", "draw", "away"))
     print(f"     e.g. pick: {rec.pretty_pick()}  (EV {rec.expected_points:.2f})")
 
 
@@ -143,12 +150,31 @@ def test_metrics():
     _check("brier perfect = 0", abs(brier_1x2(1, 0, 0, 0)) < 1e-9)
     _check("rps perfect = 0", abs(rps(1, 0, 0, 0)) < 1e-9)
     _check("rps penalises distance", rps(0, 0, 1, 0) > rps(0, 1, 0, 0))
-    _check("exact score = 8", score_pick("home", 2, 1, 2, 1, winner_definition="result_90") == 8)
-    _check("goal diff = 5", score_pick("home", 2, 1, 3, 2, winner_definition="result_90") == 5)
-    _check("winner only = 3", score_pick("home", 3, 1, 1, 0, winner_definition="result_90") == 3)
-    _check("wrong winner = 0", score_pick("home", 2, 1, 0, 1, winner_definition="result_90") == 0)
-    _check("90' draw scores no winner (result_90)",
-           score_pick("home", 1, 0, 1, 1, winner_definition="result_90") == 0)
+    _check("exact score = 8", score_pick(2, 1, 2, 1) == 8)
+    _check("goal diff = 5", score_pick(2, 1, 3, 2) == 5)
+    _check("winner only = 3", score_pick(3, 1, 1, 0) == 3)
+    _check("wrong outcome = 0", score_pick(2, 1, 0, 1) == 0)
+    # Draws: correct draw always >= 5 (GD auto-correct), exact draw = 8.
+    _check("correct draw = 5", score_pick(1, 1, 2, 2) == 5)
+    _check("exact draw = 8", score_pick(1, 1, 1, 1) == 8)
+    _check("wrong draw = 0", score_pick(1, 1, 1, 0) == 0)
+
+
+def test_market_parse():
+    print("Bookmaker market parsing:")
+    rows = [{"bookmakers": [{"bets": [
+        {"name": "Correct Score", "values": [
+            {"value": "1:0", "odd": "6.0"},
+            {"value": "1:1", "odd": "6.0"},
+            {"value": "2:0", "odd": "12.0"},
+        ]},
+        {"name": "Match Winner", "values": [{"value": "Home", "odd": "1.5"}]},
+    ]}]}]
+    from predict import parse_correct_score
+    scores = parse_correct_score(rows, top_n=3)
+    _check("correct-score scorelines parsed", len(scores) == 3)
+    _check("probabilities normalised ~1", abs(sum(p for _, _, p in scores) - 1.0) < 1e-6)
+    _check("most likely score first (tie -> 1-0/1-1 above 2-0)", scores[0][2] >= scores[2][2])
 
 
 def test_backtest():
@@ -171,6 +197,7 @@ if __name__ == "__main__":
     test_league_resolver()
     test_elo_seed()
     test_metrics()
+    test_market_parse()
     test_backtest()
     test_end_to_end()
     print("\nAll self-tests passed.")

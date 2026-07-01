@@ -160,6 +160,20 @@ class APIFootball:
         # bet=1 is the standard Match Winner (1X2) market on API-Football.
         return self.get("odds", {"fixture": fixture_id, "bet": bet}, ttl_hours=6)
 
+    def bet_types(self) -> list[dict]:
+        # Catalogue of bet ids -> names (e.g. "Match Winner", "Correct Score").
+        return self.get("odds/bets", ttl_hours=24 * 7)
+
+    def correct_score_bet_id(self) -> int | None:
+        """Resolve the 'Correct Score' bet id by name (ids aren't guaranteed)."""
+        try:
+            for b in self.bet_types():
+                if str(b.get("name", "")).strip().lower() == "correct score":
+                    return int(b["id"])
+        except Exception:
+            return None
+        return None
+
 
 def get_client() -> APIFootball:
     return APIFootball()

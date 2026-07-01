@@ -10,21 +10,27 @@ Predicts World Cup knockout matches to help the user win a Pick 'Em pool
 (currently chasing 1st from 4th). For each match the user enters a **winner**
 and a **90' scoreline**.
 
-### Pool scoring (knockout)
-Points are totals, best category you hit:
-- **3** — correct winning team
-- **5** — correct winner **+** goal difference (90')
-- **8** — correct winner **+** exact score (90')
+### Pool scoring (based on the 90' scoreline)
+One rule, best category you hit, comparing your entered 90' scoreline to the
+actual 90' scoreline:
+- **3** — correct outcome (home win / draw / away win)
+- **5** — correct outcome **+** goal difference
+- **8** — exact score
 
-The **winner is decided at the end of 90'** (regulation), NOT by who advances on
-ET/penalties. This is set via `WINNER_DEFINITION = "result_90"` in `config.py`.
-A 90' draw scores no winner points.
+Outcome is decided at the **end of 90'** (regulation), NOT by who advances on
+ET/penalties. **Draws are pickable and score**: a correct draw always nails the
+goal difference (0), so it scores **≥5** (never just 3), and **8** for the exact
+draw score. `scoring.py` derives the outcome from the picked scoreline, so a
+draw entry is a first-class option (often the best *swing* pick in tight games).
 
 ### How it works
 ML hybrid: a Poisson-loss gradient-boosted model predicts each team's expected
 goals from Elo/form/rest features (`model.py`, `features.py`) → a 90'
 score-probability grid (`poisson.py`) → optional de-vigged bookmaker-odds blend
 (`predict.py`) → an expected-points optimiser for the 3/5/8 rules (`scoring.py`).
+Each recommendation carries a **safe** (max-EV) pick and a **swing** (highest-EV
+alternative with a *different outcome*, for differentiating from the field when
+chasing), plus bookmaker 1X2 + correct-score markets shown alongside.
 
 ### Running it
 ```bash

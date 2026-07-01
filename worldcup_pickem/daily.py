@@ -33,13 +33,18 @@ def print_recommendation(r) -> None:
           f"  -  {r.lambda_away:.2f} {r.away_name}")
     print(f"  90' result:  Home {_fmt_pct(r.p_home_90)}   "
           f"Draw {_fmt_pct(r.p_draw_90)}   Away {_fmt_pct(r.p_away_90)}")
-    print(f"  Advance:     {r.home_name} {_fmt_pct(r.p_home_adv)}   "
-          f"{r.away_name} {_fmt_pct(r.p_away_adv)}")
+    # Bookmaker 1X2 shown right next to the model for comparison.
+    if r.market_1x2:
+        mh, md, ma = r.market_1x2
+        print(f"  Bookmaker:   Home {_fmt_pct(mh)}   Draw {_fmt_pct(md)}   Away {_fmt_pct(ma)}")
 
     # Score distribution: the most likely exact scorelines.
     if r.top_scores:
         line = "   ".join(f"{i}-{j} ({100 * p:.0f}%)" for i, j, p in r.top_scores)
         print(f"  Most likely scores:  {line}")
+    if r.market_scores:
+        mline = "   ".join(f"{i}-{j} ({100 * p:.0f}%)" for i, j, p in r.market_scores)
+        print(f"  Bookmaker scores:    {mline}")
 
     # Most likely scoreline within each result (home win / draw / away win).
     if r.outcome_scores:
@@ -51,14 +56,19 @@ def print_recommendation(r) -> None:
                   f"Draw {d[0]}-{d[1]} ({_fmt_pct(d[2])})   "
                   f"{r.away_name} win {a[0]}-{a[1]} ({_fmt_pct(a[2])})")
 
-    print(f"\n  >> RECOMMENDED PICK:  {r.pretty_pick()}")
-    print(f"     Expected points:   {r.expected_points:.2f}  "
+    print(f"\n  >> SAFE PICK (max EV):  {r.pretty_pick()}")
+    print(f"     Expected points:     {r.expected_points:.2f}  "
           f"(rules {config.PTS_WINNER}/{config.PTS_GOAL_DIFF}/{config.PTS_EXACT})")
+    if r.swing:
+        s = r.swing
+        print(f"  >> SWING (differentiate): {r.pretty_swing()}")
+        print(f"     EV {s['ev']:.2f} (gives up {s['ev_drop']:.2f})   "
+              f"exact-score chance {_fmt_pct(s['exact_prob'])}")
     if r.alternatives:
         alts = ",  ".join(
             f"{a['pick']} (EV {a['expected_points']})" for a in r.alternatives
         )
-        print(f"     Next best:         {alts}")
+        print(f"     Other options:       {alts}")
     print()
 
 

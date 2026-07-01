@@ -3,11 +3,14 @@
 A machine-learning model that recommends **who to pick and what score to enter**
 for each World Cup knockout match, tuned to your pool's **3 / 5 / 8** scoring:
 
-| You get | For picking correctly |
+| You get | For picking correctly (90' scoreline) |
 |--------:|-----------------------|
-| **3 pts** | the winning team (90') |
-| **5 pts** | winning team **+** goal difference (90') |
-| **8 pts** | winning team **+** exact score (90') |
+| **3 pts** | correct outcome — home win / **draw** / away win |
+| **5 pts** | correct outcome **+** goal difference |
+| **8 pts** | exact score |
+
+Draws are pickable: a correct draw always nails the goal difference (0), so it
+scores **≥5** (never just 3), and **8** for the exact draw score.
 
 ## How it works
 
@@ -20,11 +23,13 @@ for each World Cup knockout match, tuned to your pool's **3 / 5 / 8** scoring:
 4. **Score distribution** (`poisson.py`) — those expected goals become a full
    90' score-probability grid (with an optional Dixon-Coles low-score tweak).
 5. **Optional odds blend** (`predict.py`) — bookmaker 1X2 odds are de-vigged and
-   blended into the grid (skipped automatically if your plan lacks odds).
+   blended into the grid, and the **correct-score** market is shown alongside the
+   model (skipped automatically if your plan lacks odds).
 6. **The important part** (`scoring.py`) — an **expected-points optimiser** searches
-   every (winner, scoreline) entry and returns the one that **maximises expected
-   points** under the 3 / 5 / 8 rules. This is often *not* the single most likely
-   score, which is the edge over just eyeballing it.
+   every scoreline (including draws) and returns the **safe** max-EV pick, plus a
+   **swing** pick: the highest-EV alternative with a *different outcome*, its
+   exact-score chance, and how much EV it gives up — for when you need to
+   differentiate from the field rather than track it.
 
 ## Setup (two things needed)
 
@@ -77,9 +82,9 @@ expected points** plus the next-best alternatives.
 
 ## Notes & assumptions
 
-- "Winning team" means the **team ahead at the end of 90'** (a 90' draw scores no
-  winner points); the entered **score is the 90' scoreline**. Flip
-  `WINNER_DEFINITION` to `"advances"` if your pool credits whoever progresses.
+- Outcome is judged on the **90' scoreline** (home win / draw / away win); a
+  correct **draw** scores 5–8, not zero. Advancement via ET/penalties does not
+  affect scoring.
 - World Cup matches are treated as neutral venues except when a host nation
   (USA / Canada / Mexico) is the home side.
 - Cached API responses live in `data/cache/` and the trained model in

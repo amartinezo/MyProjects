@@ -138,23 +138,18 @@ def run_backtest(
             rps_sum += rps(ph, pd_, pa, oi)
             n += 1
 
-            # --- strategy picks ---
-            picks = {}
+            # --- strategy picks (each is a scoreline; outcome is implied) ---
             rec = optimize_pick(grid, home_name=item["home"], away_name=item["away"],
                                 lambda_home=lh, lambda_away=la)
-            picks["model"] = (rec.winner, rec.hg, rec.ag)
-
             mi, mj, _ = modal_score(grid)
-            m_winner = "home" if mi > mj else "away" if mi < mj else ("home" if lh >= la else "away")
-            picks["modal"] = (m_winner, mi, mj)
+            picks = {
+                "model": (rec.hg, rec.ag),
+                "modal": (mi, mj),
+                "fav1-0": (1, 0) if lh >= la else (0, 1),
+            }
 
-            if lh >= la:
-                picks["fav1-0"] = ("home", 1, 0)
-            else:
-                picks["fav1-0"] = ("away", 0, 1)
-
-            for s, (w, ph_, pa_) in picks.items():
-                pts = score_pick(w, ph_, pa_, hg, ag)
+            for s, (ph_, pa_) in picks.items():
+                pts = score_pick(ph_, pa_, hg, ag)
                 agg[s]["points"] += pts
                 if pts >= config.PTS_WINNER:
                     agg[s]["winner"] += 1
@@ -172,7 +167,7 @@ def print_report(res: dict) -> None:
     n = res["n"]
     print(f"\nBacktest over {n} scored matches "
           f"(rules {config.PTS_WINNER}/{config.PTS_GOAL_DIFF}/{config.PTS_EXACT}, "
-          f"winner={config.WINNER_DEFINITION})\n")
+          f"90' outcome incl. draws)\n")
     if n == 0:
         print("  Not enough matches to score. Try --all-internationals or a wider window.")
         return

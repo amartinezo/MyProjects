@@ -37,6 +37,51 @@ def _implied_1x2(client: APIFootball, fixture_id: int) -> tuple[float, float, fl
     return float(np.mean(hs)), float(np.mean(ds)), float(np.mean(as_))
 
 
+def parse_correct_score(rows: list[dict], top_n: int = 6) -> list[tuple[int, int, float]]:
+    """Average bookmaker 'Correct Score' odds -> de-vigged (home, away, prob).
+
+    Returns the top ``top_n`` most likely scorelines the market implies.
+    """
+    probs: dict[tuple[int, int], list[float]] = {}
+    for entry in rows:
+        for bm in entry.get("bookmakers", []):
+            for bet in bm.get("bets", []):
+                if bet.get("name") != "Correct Score":
+                    continue
+                book = {}
+                for v in bet.get("values", []):
+                    label = str(v.get("value", "")).replace(":", "-").strip()
+                    if "-" not in label:
+                        continue
+                    try:
+                        h, a = (int(x) for x in label.split("-"))
+                        odd = float(v["odd"])
+                    except (ValueError, KeyError):
+                        continue
+                    if odd > 0:
+                        book[(h, a)] = 1.0 / odd
+                tot = sum(book.values())          # de-vig within this bookmaker
+                for k, p in book.items():
+                    probs.setdefault(k, []).append(p / tot if tot > 0 else 0.0)
+    if not probs:
+        return []
+    avg = [(h, a, float(np.mean(ps))) for (h, a), ps in probs.items()]
+    avg.sort(key=lambda t: t[2], reverse=True)
+    return avg[:top_n]
+
+
+def _market_correct_score(client: APIFootball, fixture_id: int) -> list[tuple[int, int, float]]:
+    """Fetch and parse the bookmaker Correct Score market (best-effort)."""
+    bet_id = client.correct_score_bet_id()
+    if bet_id is None:
+        return []
+    try:
+        rows = client.odds(fixture_id, bet=bet_id)
+    except Exception:
+        return []
+    return parse_correct_score(rows)
+
+
 def _blend_grid_to_market(grid: np.ndarray, market: tuple[float, float, float], w: float) -> np.ndarray:
     """Rescale the grid's win/draw/loss mass toward market probabilities.
 
@@ -82,25 +127,24 @@ def predict_fixture(
 
     grid = score_grid(lh, la)
 
+    market_1x2 = None
+    market_scores = None
     if use_odds and client is not None and meta.get("fixture_id"):
-        market = _implied_1x2(client, meta["fixture_id"])
-        if market:
-            grid = _blend_grid_to_market(grid, market, config.MARKET_BLEND_WEIGHT)
+        market_1x2 = _implied_1x2(client, meta["fixture_id"])
+        if market_1x2:
+            grid = _blend_grid_to_market(grid, market_1x2, config.MARKET_BLEND_WEIGHT)
+        market_scores = _market_correct_score(client, meta["fixture_id"]) or None
 
-    # Chance of winning a coin-flip-ish shootout, tilted by relative strength.
-    tiebreak_home = float(np.clip(lh / (lh + la), 0.35, 0.65)) if (lh + la) > 0 else 0.5
-    if not meta.get("knockout", True):
-        # Group stage: a draw is a valid final result, no "advance" tiebreak.
-        tiebreak_home = 0.5
-
-    return optimize_pick(
+    rec = optimize_pick(
         grid,
         home_name=meta["home"],
         away_name=meta["away"],
         lambda_home=lh,
         lambda_away=la,
-        tiebreak_home=tiebreak_home,
     )
+    rec.market_1x2 = market_1x2
+    rec.market_scores = market_scores
+    return rec
 
 
 def predict_fixtures(
