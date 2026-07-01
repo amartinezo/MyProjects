@@ -58,12 +58,12 @@ PTS_GOAL_DIFF = int(os.environ.get("PTS_GOAL_DIFF", "5"))  # + right goal differ
 PTS_EXACT = int(os.environ.get("PTS_EXACT", "8"))          # + exact 90' scoreline
 
 # How the pool defines the "winning team" you pick for the 3 points:
-#   "advances"   -> the team that progresses (incl. extra time / penalties)
 #   "result_90"  -> the team ahead at the end of regulation (a 90' draw scores 0)
-# You confirmed the *score* you enter is the 90' scoreline; this only affects
-# the 3-point "winner" leg. Default assumes a knockout pool where you pick who
-# goes through. Flip to "result_90" if your pool scores the winner at 90'.
-WINNER_DEFINITION = os.environ.get("WINNER_DEFINITION", "advances")
+#   "advances"   -> the team that progresses (incl. extra time / penalties)
+# The *score* you enter is always the 90' scoreline; this only affects the
+# 3-point "winner" leg. Confirmed with the pool: the winner is decided at the
+# end of regulation, so the default is "result_90".
+WINNER_DEFINITION = os.environ.get("WINNER_DEFINITION", "result_90")
 
 # --------------------------------------------------------------------------
 # Model / Poisson settings
