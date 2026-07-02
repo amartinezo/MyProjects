@@ -8,11 +8,21 @@ is derived separately in ``scoring.py``.
 from __future__ import annotations
 
 import datetime as dt
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pandas as pd
 
 import config
 from api_client import APIFootball, get_client
+
+
+def _local_today() -> dt.date:
+    """Today's date in the configured local timezone (falls back to UTC)."""
+    try:
+        tz = ZoneInfo(config.LOCAL_TIMEZONE)
+    except (ZoneInfoNotFoundError, ValueError):
+        tz = dt.timezone.utc
+    return dt.datetime.now(tz).date()
 
 # Match statuses that mean the 90' result is final and usable for training.
 FINISHED = {"FT", "AET", "PEN"}
@@ -149,10 +159,13 @@ def upcoming_fixtures(
 ) -> pd.DataFrame:
     """Return World Cup fixtures scheduled on ``date`` (YYYY-MM-DD, default today)."""
     client = client or get_client()
-    date = date or dt.date.today().isoformat()
+    date = date or _local_today().isoformat()
 
     raw = client.fixtures(
-        config.WORLD_CUP_LEAGUE_ID, config.WORLD_CUP_SEASON, date=date
+        config.WORLD_CUP_LEAGUE_ID,
+        config.WORLD_CUP_SEASON,
+        date=date,
+        timezone=config.LOCAL_TIMEZONE,
     )
     rows = [
         _row_from_fixture(fx, world_cup_league=config.WORLD_CUP_LEAGUE_ID)
